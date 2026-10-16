@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stream Title & Thumbnail Planner</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#13111f;--panel:#1c1930;--deep:#110f1c;--line:#2e2a4a;--ink:#f1eefc;--mute:#a49fc4;--acc:#ff5c8a;--acc2:#7c6cff;--ok:#5ee6a8;--warn:#ffb86b;color-scheme:dark}
+body{background:radial-gradient(900px 400px at 10% -10%,#2a1f55 0,transparent 60%),var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+h1,h2,h3,.disp{font-family:'Space Grotesk',Inter,sans-serif}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px}
+.lbl{display:flex;justify-content:space-between;font-size:.8rem;color:var(--mute);margin-bottom:.35rem}
+.lbl b{color:var(--ink);font-weight:600}
+.inp{width:100%;background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:.6rem .75rem;color:var(--ink);font-size:.92rem}
+.inp::placeholder{color:#6e6990}
+:is(.inp,.btn,.btn2,.seg button,.tab,.chip,.drop,.sw):focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+.btn{background:var(--acc);color:#1a0b12;font-weight:600;border-radius:10px;padding:.65rem 1.1rem;font-size:.92rem;transition:filter .15s}
+.btn:hover{filter:brightness(1.1)}
+.btn2{border:1px solid var(--line);border-radius:10px;padding:.45rem .8rem;font-size:.85rem;color:var(--ink)}
+.btn2:hover{border-color:var(--acc2)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--deep);padding:4px;border-radius:12px}
+.tab{padding:.6rem;border-radius:9px;font-weight:600;font-size:.9rem;color:var(--mute)}
+.tab[aria-selected=true]{background:var(--acc2);color:#fff}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--deep);padding:3px;border-radius:10px;gap:3px}
+.seg button{padding:.4rem .5rem;border-radius:8px;font-size:.82rem;color:var(--mute)}
+.seg button[aria-pressed=true]{background:var(--line);color:var(--ink)}
+.chip{border:1px solid var(--line);border-radius:999px;padding:.3rem .8rem;font-size:.8rem;color:var(--ink)}
+.chip:hover{border-color:var(--acc)}
+.drop{display:flex;flex-direction:column;align-items:center;gap:.25rem;text-align:center;padding:1.4rem 1rem;border:2px dashed var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--acc);background:#241f3d}
+.sw{width:100%;aspect-ratio:16/9;border-radius:8px;border:2px solid transparent}
+.sw[aria-pressed=true]{border-color:#fff}
+input[type=range]{width:100%;accent-color:var(--acc)}
+input[type=color]{width:100%;height:2.3rem;background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:3px}
+canvas{display:block;width:100%;height:auto;background:#000}
+#main{touch-action:none;cursor:grab;border-radius:12px}
+#main:active{cursor:grabbing}
+.pvbox canvas{border-radius:8px}
+.step{font-size:.78rem;color:var(--mute)}
+@media (prefers-reduced-motion:no-preference){.toast{transition:opacity .25s}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="max-w-6xl mx-auto px-4 pt-7 pb-4 flex flex-wrap items-end justify-between gap-2">
+  <div>
+    <h1 class="text-2xl sm:text-3xl font-bold">Stream Title &amp; Thumbnail Planner</h1>
+    <p class="text-sm mt-1" style="color:var(--mute)">Atur gambar dan teks, cek hasilnya di ukuran HP, lalu salin judul yang pas.</p>
+  </div>
+  <button class="btn2" id="reset">Mulai ulang</button>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 pb-16 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
+
+<!-- KIRI: PREVIEW (menempel saat scroll di layar lebar) -->
+<section class="panel p-4 space-y-4 lg:sticky lg:top-4 self-start" aria-label="Preview thumbnail">
+  <canvas id="main" width="1280" height="720" aria-label="Kanvas thumbnail 16:9. Seret untuk memindahkan teks."></canvas>
+  <div class="flex flex-wrap items-center gap-2">
+    <p class="text-xs flex-1 min-w-[10rem]" style="color:var(--mute)">Seret di kanvas untuk memindahkan teks yang dipilih.</p>
+    <button class="btn" id="dl">Unduh PNG</button>
+  </div>
+
+  <div class="pvbox border-t pt-4" style="border-color:var(--line)">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold">Tampilan di HP</h2>
+      <span id="status" class="text-xs font-semibold px-2 py-1 rounded-full"></span>
+    </div>
+    <div class="flex flex-wrap items-start gap-4">
+      <div style="width:min(100%,240px)">
+        <canvas class="pv" width="240" height="135"></canvas>
+        <p class="text-sm font-medium leading-snug mt-1.5 pc"></p>
+        <p class="step">Feed beranda</p>
+      </div>
+      <div style="width:150px">
+        <canvas class="pv" width="150" height="84"></canvas>
+        <p class="text-xs leading-snug mt-1.5 pc"></p>
+        <p class="step">Video saran</p>
+      </div>
+      <div style="width:96px">
+        <canvas class="pv" width="96" height="54"></canvas>
+        <p class="step mt-1.5">Paling kecil</p>
+      </div>
+    </div>
+    <ul id="warn" class="mt-3 text-sm space-y-1"></ul>
+  </div>
+</section>
+
+<!-- KANAN: KONTROL -->
+<section class="panel p-4 space-y-4 self-start" aria-label="Pengaturan">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="bgP" aria-selected="true">Latar</button>
+    <button class="tab" role="tab" data-tab="txtP" aria-selected="false">Teks</button>
+    <button class="tab" role="tab" data-tab="ttlP" aria-selected="false">Judul</button>
+  </div>
+
+  <!-- LATAR -->
+  <div id="bgP" class="space-y-4">
+    <label class="drop" id="drop">
+      <input id="bg" type="file" accept="image/*" class="sr-only">
+      <span class="disp font-bold">Unggah gambar latar</span>
+      <span class="text-xs" style="color:var(--mute)">Klik di sini atau seret gambar ke area ini (PNG, JPG, WEBP)</span>
+      <span id="fname" class="text-xs" style="color:var(--ok)"></span>
+    </label>
+    <div>
+      <span class="lbl"><span>Atau pilih warna latar</span></span>
+      <div class="grid grid-cols-4 gap-2" id="sws"></div>
+    </div>
+    <div>
+      <label class="lbl" for="dim"><span>Gelapkan latar agar teks lebih jelas</span><b id="dimV"></b></label>
+      <input id="dim" type="range" min="0" max="80" value="30">
+    </div>
+    <button class="btn2" id="rmbg">Hapus gambar</button>
+  </div>
+
+  <!-- TEKS -->
+  <div id="txtP" class="space-y-4" hidden>
+    <div class="seg" id="layerSeg">
+      <button data-layer="0" aria-pressed="true">Teks utama</button>
+      <button data-layer="1" aria-pressed="false">Teks kedua</button>
+    </div>
+    <div>
+      <label class="lbl" for="txt"><span>Isi teks</span><span>Enter = baris baru</span></label>
+      <textarea id="txt" rows="2" class="inp"></textarea>
+    </div>
+    <div>
+      <span class="lbl"><span>Gaya cepat</span></span>
+      <div class="flex flex-wrap gap-2" id="presets"></div>
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+      <div><label class="lbl" for="size"><span>Ukuran</span><b id="sizeV"></b></label><input id="size" type="range" min="30" max="300"></div>
+      <div><label class="lbl" for="font"><span>Font</span></label>
+        <select id="font" class="inp">
+          <option>Space Grotesk</option><option>Impact</option><option>Arial Black</option><option>Georgia</option><option>Courier New</option>
+        </select></div>
+      <div><label class="lbl" for="px"><span>Kiri-kanan</span><b id="pxV"></b></label><input id="px" type="range" min="0" max="100"></div>
+      <div><label class="lbl" for="py"><span>Atas-bawah</span><b id="pyV"></b></label><input id="py" type="range" min="0" max="100"></div>
+      <div><label class="lbl" for="col"><span>Warna teks</span></label><input id="col" type="color"></div>
+      <div><label class="lbl" for="stk"><span>Warna outline</span></label><input id="stk" type="color"></div>
+    </div>
+    <div>
+      <span class="lbl"><span>Rata teks</span></span>
+      <div class="seg" id="alignSeg">
+        <button data-align="left">Kiri</button><button data-align="center" aria-pressed="true">Tengah</button><button data-align="right">Kanan</button>
+      </div>
+    </div>
+    <label class="flex items-center gap-2 text-sm"><input id="safe" type="checkbox" class="accent-pink-500" checked> Tampilkan zona aman (tidak ikut terunduh)</label>
+  </div>
+
+  <!-- JUDUL -->
+  <div id="ttlP" class="space-y-4" hidden>
+    <div class="flex items-center justify-between">
+      <p class="text-sm" style="color:var(--mute)">Isi minimal satu kolom.</p>
+      <button class="chip" id="ex">Isi contoh</button>
+    </div>
+    <div><label class="lbl" for="g"><span>Nama game</span></label><input id="g" class="inp" placeholder="Elden Ring"></div>
+    <div><label class="lbl" for="m"><span>Tujuan sesi atau milestone</span></label><input id="m" class="inp" placeholder="Kalahkan Malenia"></div>
+    <div><label class="lbl" for="e"><span>Emosi atau kondisi</span></label><input id="e" class="inp" placeholder="Hampir Rage Quit"></div>
+    <label class="flex items-center gap-2 text-sm"><input id="emo" type="checkbox" class="accent-pink-500" checked> Tambahkan emoji</label>
+    <button class="btn w-full" id="gen">Buat ide judul</button>
+    <ol id="out" class="space-y-2" aria-live="polite"></ol>
+  </div>
+</section>
+</main>
+
+<div id="toast" class="toast fixed bottom-5 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm opacity-0 pointer-events-none z-50" style="background:var(--acc2);color:#fff" role="status"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('main'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, dim = $('dim');
+const GRADS = [['#3a2a7a','#c2386a'],['#0f4c5c','#1db8a4'],['#1a1a2e','#e94560'],['#f09819','#ff512f']];
+const PRESETS = {
+  'Putih tegas':{color:'#ffffff',stroke:'#000000'},
+  'Kuning neon':{color:'#ffe94d',stroke:'#1a1000'},
+  'Merah panas':{color:'#ff4d5a',stroke:'#ffffff'},
+  'Cyan':{color:'#5ef2ff',stroke:'#00232b'}
+};
+const DEFAULTS = () => [
+  {text:'HAMPIR\nMENYERAH!',size:150,x:50,y:48,color:'#ffffff',stroke:'#000000',font:'Space Grotesk',align:'center'},
+  {text:'LIVE SEKARANG',size:70,x:50,y:84,color:'#ffe94d',stroke:'#1a1000',font:'Space Grotesk',align:'center'}
+];
+let layers = DEFAULTS(), active = 0, bgImg = null, grad = 0;
+
+/* ---- gambar ---- */
+function draw(overlay = true){
+  if(bgImg){
+    const r = Math.max(W/bgImg.width, H/bgImg.height), w = bgImg.width*r, h = bgImg.height*r;
+    ctx.drawImage(bgImg,(W-w)/2,(H-h)/2,w,h);
+  } else {
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,GRADS[grad][0]); g.addColorStop(1,GRADS[grad][1]);
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  }
+  ctx.fillStyle = `rgba(0,0,0,${dim.value/100})`; ctx.fillRect(0,0,W,H);
+  layers.forEach(L=>{
+    if(!L.text.trim()) return;
+    ctx.font = `700 ${L.size}px "${L.font}", Impact, sans-serif`;
+    ctx.textAlign = L.align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = L.size*0.16;
+    const lines = L.text.toUpperCase().split('\n'), lh = L.size*1.08, x = W*L.x/100, y0 = H*L.y/100 - lh*(lines.length-1)/2;
+    lines.forEach((ln,i)=>{ ctx.strokeStyle = L.stroke; ctx.strokeText(ln,x,y0+i*lh); ctx.fillStyle = L.color; ctx.fillText(ln,x,y0+i*lh); });
+  });
+  document.querySelectorAll('.pv').forEach(c=>{ const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cv,0,0,c.width,c.height); });
+  if(overlay && $('safe').checked){
+    ctx.save(); ctx.setLineDash([14,10]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.strokeRect(W*.05,H*.07,W*.9,H*.86);
+    ctx.fillStyle = 'rgba(255,92,138,.35)'; ctx.fillRect(W-210,H-90,190,70);
+    ctx.setLineDash([]); ctx.fillStyle = '#fff'; ctx.font = '600 24px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Durasi video',W-115,H-55);
+    ctx.restore();
+  }
+  checkWarnings();
+}
+
+function checkWarnings(){
+  const w = [];
+  layers.forEach((L,i)=>{
+    if(!L.text.trim()) return;
+    const n = i ? 'Teks kedua' : 'Teks utama', words = L.text.trim().split(/\s+/).length;
+    if(L.size < 70) w.push(`${n}: ukuran terlalu kecil untuk HP. Coba 70 ke atas.`);
+    if(words > 5) w.push(`${n}: ${words} kata kebanyakan. Usahakan 5 kata atau kurang.`);
+    if(L.x<8||L.x>92||L.y<8||L.y>92) w.push(`${n}: terlalu dekat tepi, bisa terpotong atau tertutup durasi video.`);
+  });
+  const s = $('status');
+  s.textContent = w.length ? `${w.length} saran` : 'Aman dibaca';
+  s.style.cssText = w.length ? 'background:#3b2a15;color:var(--warn)' : 'background:#143326;color:var(--ok)';
+  $('warn').innerHTML = w.length ? w.map(t=>`<li style="color:var(--warn)">&bull; ${t}</li>`).join('')
+    : '<li style="color:var(--mute)">Teks cukup besar dan di area aman. Pastikan juga masih terbaca di kotak paling kecil.</li>';
+}
+
+/* ---- kontrol teks ---- */
+function syncUI(){
+  const L = layers[active];
+  $('txt').value = L.text; $('size').value = L.size; $('px').value = L.x; $('py').value = L.y;
+  $('col').value = L.color; $('stk').value = L.stroke; $('font').value = L.font;
+  $('sizeV').textContent = L.size; $('pxV').textContent = Math.round(L.x)+'%'; $('pyV').textContent = Math.round(L.y)+'%';
+  document.querySelectorAll('[data-layer]').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.layer === active));
+  document.querySelectorAll('[data-align]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.align === L.align));
+}
+function bind(id,key,num){ $(id).addEventListener('input',e=>{ layers[active][key] = num ? +e.target.value : e.target.value; syncUI(); draw(); }); }
+bind('txt','text'); bind('size','size',1); bind('px','x',1); bind('py','y',1); bind('col','color'); bind('stk','stroke'); bind('font','font');
+dim.addEventListener('input',()=>{ $('dimV').textContent = dim.value+'%'; draw(); });
+$('safe').addEventListener('change',()=>draw());
+document.querySelectorAll('[data-layer]').forEach(b=>b.onclick = ()=>{ active = +b.dataset.layer; syncUI(); });
+document.querySelectorAll('[data-align]').forEach(b=>b.onclick = ()=>{ layers[active].align = b.dataset.align; syncUI(); draw(); });
+Object.entries(PRESETS).forEach(([name,p])=>{
+  const b = document.createElement('button'); b.className = 'chip'; b.textContent = name;
+  b.onclick = ()=>{ Object.assign(layers[active],p); syncUI(); draw(); };
+  $('presets').appendChild(b);
+});
+
+/* ---- latar ---- */
+GRADS.forEach((g,i)=>{
+  const b = document.createElement('button'); b.className = 'sw'; b.setAttribute('aria-label','Warna latar '+(i+1));
+  b.style.background = `linear-gradient(135deg,${g[0]},${g[1]})`; b.setAttribute('aria-pressed', i===0);
+  b.onclick = ()=>{ grad = i; bgImg = null; $('fname').textContent = ''; document.querySelectorAll('.sw').forEach((s,j)=>s.setAttribute('aria-pressed', j===i)); draw(); };
+  $('sws').appendChild(b);
+});
+function loadBg(f){
+  if(!f) return;
+  if(!/^image\//.test(f.type) && !/\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)){ toast('File harus berupa gambar (PNG, JPG, WEBP).'); return; }
+  const fr = new FileReader();
+  fr.onerror = ()=>toast('File tidak bisa dibaca. Coba file lain.');
+  fr.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{ bgImg = img; $('fname').textContent = 'Terpasang: '+f.name; draw(); toast('Gambar latar dipasang.'); };
+    img.onerror = ()=>toast('Gambar rusak atau formatnya tidak didukung.');
+    img.src = fr.result;
+  };
+  fr.readAsDataURL(f);
+}
+$('bg').addEventListener('change',e=>{ loadBg(e.target.files[0]); e.target.value = ''; });
+[cv,$('drop')].forEach(el=>{
+  el.addEventListener('dragover',e=>{ e.preventDefault(); $('drop').classList.add('over'); });
+  el.addEventListener('dragleave',()=>$('drop').classList.remove('over'));
+  el.addEventListener('drop',e=>{ e.preventDefault(); $('drop').classList.remove('over'); loadBg(e.dataTransfer.files[0]); });
+});
+$('rmbg').onclick = ()=>{ bgImg = null; $('fname').textContent = ''; draw(); };
+
+/* seret teks */
+let dragging = false;
+function moveTo(e){
+  const r = cv.getBoundingClientRect(), L = layers[active];
+  L.x = Math.min(100,Math.max(0,(e.clientX-r.left)/r.width*100));
+  L.y = Math.min(100,Math.max(0,(e.clientY-r.top)/r.height*100));
+  syncUI(); draw();
+}
+cv.addEventListener('pointerdown',e=>{ dragging = true; cv.setPointerCapture(e.pointerId); moveTo(e); });
+cv.addEventListener('pointermove',e=>{ if(dragging) moveTo(e); });
+cv.addEventListener('pointerup',()=>dragging = false);
+
+$('dl').onclick = ()=>{
+  draw(false);
+  const a = document.createElement('a'); a.download = 'thumbnail.png'; a.href = cv.toDataURL('image/png'); a.click();
+  draw(); toast('Thumbnail diunduh.');
+};
+$('reset').onclick = ()=>{ if(!confirm('Kembalikan semua pengaturan thumbnail ke awal?')) return; layers = DEFAULTS(); active = 0; bgImg = null; grad = 0; dim.value = 30; $('dimV').textContent = '30%'; $('fname').textContent = ''; document.querySelectorAll('.sw').forEach((s,j)=>s.setAttribute('aria-pressed', j===0)); syncUI(); draw(); };
+
+/* ---- tab ---- */
+document.querySelectorAll('[data-tab]').forEach(t=>t.onclick = ()=>{
+  document.querySelectorAll('[data-tab]').forEach(x=>{ x.setAttribute('aria-selected', x===t); $(x.dataset.tab).hidden = x!==t; });
+});
+
+/* ---- judul ---- */
+const T = [
+  {t:'{e}! {m} di {g}',req:'gme',em:'🔥'},{t:'{g}: {m} ({e})',req:'gme',em:'🎮'},
+  {t:'LIVE {g} | {m}, {e}',req:'gme',em:'🔴'},{t:'Bisakah {m} Hari Ini? {g} Bikin {e}',req:'gme',em:'😱'},
+  {t:'{m} di {g} atau Ulang dari Awal',req:'gm',em:'⚔️'},{t:'Hari Ini Harus {m}! {g} Live',req:'gm',em:'🎯'},
+  {t:'{g} Sampai {m}, Jangan Kedip',req:'gm',em:'👀'},{t:'{g} Bikin {e}, Ayo Temani Aku',req:'ge',em:'😭'},
+  {t:'{e} Main {g} Malam Ini',req:'ge',em:'💀'},{t:'{m} Sambil {e}',req:'me',em:'🔥'},
+  {t:'Misi Hari Ini: {m}',req:'m',em:'🎯'},{t:'{g} Live: Santai Bareng Chat',req:'g',em:'🎮'},
+  {t:'Main {g} Malam Ini, Gabung Yuk',req:'g',em:'🔴'},{t:'{e}! Live Sekarang',req:'e',em:'⚡'}
+];
+function gen(){
+  const v = {g:$('g').value.trim(), m:$('m').value.trim(), e:$('e').value.trim()};
+  if(!v.g && !v.m && !v.e){ toast('Isi minimal satu kolom dulu.'); return; }
+  const list = $('out'); list.innerHTML = '';
+  T.filter(x=>[...x.req].every(k=>v[k])).map(x=>({x,r:x.req.length+Math.random()*1.5})).sort((a,b)=>b.r-a.r).slice(0,7).forEach(({x})=>{
+    let s = x.t.replace(/\{(\w)\}/g,(_,k)=>v[k]); if($('emo').checked) s = x.em+' '+s;
+    const n = s.length, long = n>70, li = document.createElement('li');
+    li.className = 'p-3 rounded-xl'; li.style.cssText = 'background:var(--deep);border:1px solid var(--line)';
+    li.innerHTML = `<p class="font-medium break-words"></p>
+      <div class="flex flex-wrap items-center gap-2 mt-2">
+        <span class="text-xs flex-1" style="color:${long?'var(--warn)':'var(--mute)'}">${n} karakter${long?', bisa terpotong di HP':''}</span>
+        <button class="btn2 pu">Pakai di preview</button><button class="btn2 cp" style="border-color:var(--acc)">Salin</button></div>`;
+    li.querySelector('p').textContent = s;
+    li.querySelector('.cp').onclick = ()=>copy(s);
+    li.querySelector('.pu').onclick = ()=>{ setCard(s); toast('Judul dipasang di kartu preview.'); };
+    list.appendChild(li);
+  });
+}
+$('gen').onclick = gen;
+['g','m','e'].forEach(id=>$(id).addEventListener('keydown',e=>{ if(e.key==='Enter') gen(); }));
+$('ex').onclick = ()=>{ $('g').value = 'Elden Ring'; $('m').value = 'Kalahkan Malenia'; $('e').value = 'Hampir Rage Quit'; gen(); };
+function setCard(t){ document.querySelectorAll('.pc').forEach(p=>p.textContent = t); }
+async function copy(s){
+  try{ await navigator.clipboard.writeText(s); toast('Judul disalin.'); }
+  catch{ const t = document.createElement('textarea'); t.value = s; document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); toast('Judul disalin.'); }catch{ toast('Gagal menyalin. Salin manual ya.'); } t.remove(); }
+}
+let tm;
+function toast(m){ const t = $('toast'); t.textContent = m; t.style.opacity = 1; clearTimeout(tm); tm = setTimeout(()=>t.style.opacity = 0, 1800); }
+
+/* ---- mulai ---- */
+$('dimV').textContent = '30%'; setCard('Judul live streaming kamu muncul di sini');
+syncUI(); draw();
+if(document.fonts) document.fonts.ready.then(()=>draw());
+</script>
+</body>
+</html>
