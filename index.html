@@ -20,7 +20,7 @@ h1,h2,h3,.disp{font-family:'Space Grotesk',Inter,sans-serif}
 .btn:hover{filter:brightness(1.1)}
 .btn2{border:1px solid var(--line);border-radius:10px;padding:.45rem .8rem;font-size:.85rem;color:var(--ink)}
 .btn2:hover{border-color:var(--acc2)}
-.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--deep);padding:4px;border-radius:12px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--deep);padding:4px;border-radius:12px}
 .tab{padding:.6rem;border-radius:9px;font-weight:600;font-size:.9rem;color:var(--mute)}
 .tab[aria-selected=true]{background:var(--acc2);color:#fff}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--deep);padding:3px;border-radius:10px;gap:3px}
@@ -57,7 +57,7 @@ canvas{display:block;width:100%;height:auto;background:#000}
 <section class="panel p-4 space-y-4 lg:sticky lg:top-4 self-start" aria-label="Preview thumbnail">
   <canvas id="main" width="1280" height="720" aria-label="Kanvas thumbnail 16:9. Seret untuk memindahkan teks."></canvas>
   <div class="flex flex-wrap items-center gap-2">
-    <p class="text-xs flex-1 min-w-[10rem]" style="color:var(--mute)">Seret di kanvas untuk memindahkan teks yang dipilih.</p>
+    <p class="text-xs flex-1 min-w-[10rem]" style="color:var(--mute)">Seret di kanvas untuk memindahkan teks atau gambar yang dipilih.</p>
     <button class="btn" id="dl">Unduh PNG</button>
   </div>
 
@@ -91,6 +91,7 @@ canvas{display:block;width:100%;height:auto;background:#000}
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="bgP" aria-selected="true">Latar</button>
     <button class="tab" role="tab" data-tab="txtP" aria-selected="false">Teks</button>
+    <button class="tab" role="tab" data-tab="imgP" aria-selected="false">Gambar</button>
     <button class="tab" role="tab" data-tab="ttlP" aria-selected="false">Judul</button>
   </div>
 
@@ -147,6 +148,27 @@ canvas{display:block;width:100%;height:auto;background:#000}
     <label class="flex items-center gap-2 text-sm"><input id="safe" type="checkbox" class="accent-pink-500" checked> Tampilkan zona aman (tidak ikut terunduh)</label>
   </div>
 
+  <!-- GAMBAR / LOGO -->
+  <div id="imgP" class="space-y-4" hidden>
+    <label class="drop" id="drop2">
+      <input id="stIn" type="file" accept="image/*" multiple class="sr-only">
+      <span class="disp font-bold">Tambah logo, ikon, atau karakter</span>
+      <span class="text-xs" style="color:var(--mute)">Bisa pilih banyak file sekaligus. PNG transparan didukung.</span>
+    </label>
+    <p id="stEmpty" class="text-sm" style="color:var(--mute)">Belum ada gambar. Gambar tampil di atas latar dan di bawah teks.</p>
+    <ul id="stList" class="space-y-2"></ul>
+    <div id="stCtl" class="space-y-3" hidden>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+        <div><label class="lbl" for="sSize"><span>Ukuran</span><b id="sSizeV"></b></label><input id="sSize" type="range" min="3" max="100"></div>
+        <div><label class="lbl" for="sOp"><span>Transparansi</span><b id="sOpV"></b></label><input id="sOp" type="range" min="10" max="100"></div>
+        <div><label class="lbl" for="sX"><span>Kiri-kanan</span><b id="sXV"></b></label><input id="sX" type="range" min="0" max="100"></div>
+        <div><label class="lbl" for="sY"><span>Atas-bawah</span><b id="sYV"></b></label><input id="sY" type="range" min="0" max="100"></div>
+      </div>
+      <div class="flex gap-2"><button class="btn2" id="stUp">Naikkan lapisan</button><button class="btn2" id="stDown">Turunkan lapisan</button></div>
+      <p class="text-xs" style="color:var(--mute)">Di tab ini, seret gambar langsung di kanvas untuk memindahkannya.</p>
+    </div>
+  </div>
+
   <!-- JUDUL -->
   <div id="ttlP" class="space-y-4" hidden>
     <div class="flex items-center justify-between">
@@ -179,7 +201,7 @@ const DEFAULTS = () => [
   {text:'HAMPIR\nMENYERAH!',size:150,x:50,y:48,color:'#ffffff',stroke:'#000000',font:'Space Grotesk',align:'center'},
   {text:'LIVE SEKARANG',size:70,x:50,y:84,color:'#ffe94d',stroke:'#1a1000',font:'Space Grotesk',align:'center'}
 ];
-let layers = DEFAULTS(), active = 0, bgImg = null, grad = 0;
+let layers = DEFAULTS(), active = 0, bgImg = null, grad = 0, stickers = [], selId = null, curTab = 'bgP';
 
 /* ---- gambar ---- */
 function draw(overlay = true){
@@ -192,6 +214,7 @@ function draw(overlay = true){
     ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   }
   ctx.fillStyle = `rgba(0,0,0,${dim.value/100})`; ctx.fillRect(0,0,W,H);
+  stickers.forEach(t=>{ const w = W*t.w/100, h = w*t.img.height/t.img.width; ctx.globalAlpha = t.op/100; ctx.drawImage(t.img,W*t.x/100-w/2,H*t.y/100-h/2,w,h); ctx.globalAlpha = 1; });
   layers.forEach(L=>{
     if(!L.text.trim()) return;
     ctx.font = `700 ${L.size}px "${L.font}", Impact, sans-serif`;
@@ -206,6 +229,12 @@ function draw(overlay = true){
     ctx.fillStyle = 'rgba(255,92,138,.35)'; ctx.fillRect(W-210,H-90,190,70);
     ctx.setLineDash([]); ctx.fillStyle = '#fff'; ctx.font = '600 24px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Durasi video',W-115,H-55);
     ctx.restore();
+  }
+  const sl = getSel();
+  if(overlay && curTab==='imgP' && sl){
+    const w = W*sl.w/100, h = w*sl.img.height/sl.img.width;
+    ctx.save(); ctx.setLineDash([12,8]); ctx.lineWidth = 3; ctx.strokeStyle = '#7c6cff';
+    ctx.strokeRect(W*sl.x/100-w/2,H*sl.y/100-h/2,w,h); ctx.restore();
   }
   checkWarnings();
 }
@@ -271,19 +300,86 @@ $('bg').addEventListener('change',e=>{ loadBg(e.target.files[0]); e.target.value
 [cv,$('drop')].forEach(el=>{
   el.addEventListener('dragover',e=>{ e.preventDefault(); $('drop').classList.add('over'); });
   el.addEventListener('dragleave',()=>$('drop').classList.remove('over'));
-  el.addEventListener('drop',e=>{ e.preventDefault(); $('drop').classList.remove('over'); loadBg(e.dataTransfer.files[0]); });
+  el.addEventListener('drop',e=>{ e.preventDefault(); $('drop').classList.remove('over'); if(el===cv && curTab==='imgP') addStickers(e.dataTransfer.files); else loadBg(e.dataTransfer.files[0]); });
 });
 $('rmbg').onclick = ()=>{ bgImg = null; $('fname').textContent = ''; draw(); };
 
-/* seret teks */
-let dragging = false;
-function moveTo(e){
-  const r = cv.getBoundingClientRect(), L = layers[active];
-  L.x = Math.min(100,Math.max(0,(e.clientX-r.left)/r.width*100));
-  L.y = Math.min(100,Math.max(0,(e.clientY-r.top)/r.height*100));
-  syncUI(); draw();
+/* ---- gambar / logo (bisa banyak) ---- */
+const getSel = () => stickers.find(t=>t.id===selId);
+function addStickers(files){
+  [...files].forEach(f=>{
+    if(!/^image\//.test(f.type) && !/\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(f.name)){ toast(f.name+' bukan gambar.'); return; }
+    const fr = new FileReader();
+    fr.onerror = ()=>toast('Gagal membaca '+f.name);
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const t = {id:Date.now()+Math.random(), name:f.name, src:fr.result, img, x:Math.min(90,25+stickers.length*12), y:50, w:25, op:100};
+        stickers.push(t); selId = t.id; renderStList(); syncSt(); draw();
+      };
+      img.onerror = ()=>toast(f.name+' rusak atau tidak didukung.');
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(f);
+  });
 }
-cv.addEventListener('pointerdown',e=>{ dragging = true; cv.setPointerCapture(e.pointerId); moveTo(e); });
+function renderStList(){
+  const ul = $('stList'); ul.innerHTML = '';
+  $('stEmpty').hidden = stickers.length > 0; $('stCtl').hidden = !getSel();
+  stickers.forEach(t=>{
+    const li = document.createElement('li'), pick = ()=>{ selId = t.id; renderStList(); syncSt(); draw(); };
+    li.className = 'flex items-center gap-3 p-2 rounded-xl cursor-pointer'; li.tabIndex = 0;
+    li.style.cssText = `background:var(--deep);border:1px solid ${t.id===selId?'var(--acc)':'var(--line)'}`;
+    li.innerHTML = '<img class="w-10 h-10 object-contain rounded" style="background:#2a2645" alt=""><span class="flex-1 text-sm truncate"></span><button class="btn2">Hapus</button>';
+    li.querySelector('img').src = t.src; li.querySelector('span').textContent = t.name;
+    li.onclick = pick; li.onkeydown = e=>{ if(e.key==='Enter') pick(); };
+    li.querySelector('button').onclick = e=>{
+      e.stopPropagation(); stickers = stickers.filter(x=>x!==t);
+      if(selId===t.id) selId = stickers.length ? stickers[stickers.length-1].id : null;
+      renderStList(); syncSt(); draw();
+    };
+    ul.appendChild(li);
+  });
+}
+function syncSt(){
+  const t = getSel(); if(!t) return;
+  $('sSize').value = t.w; $('sOp').value = t.op; $('sX').value = t.x; $('sY').value = t.y;
+  $('sSizeV').textContent = Math.round(t.w)+'%'; $('sOpV').textContent = Math.round(t.op)+'%';
+  $('sXV').textContent = Math.round(t.x)+'%'; $('sYV').textContent = Math.round(t.y)+'%';
+}
+[['sSize','w'],['sOp','op'],['sX','x'],['sY','y']].forEach(([id,k])=>$(id).addEventListener('input',e=>{
+  const t = getSel(); if(!t) return; t[k] = +e.target.value; syncSt(); draw();
+}));
+function reorder(d){
+  const i = stickers.findIndex(t=>t.id===selId), j = i+d; if(i<0||j<0||j>=stickers.length) return;
+  [stickers[i],stickers[j]] = [stickers[j],stickers[i]]; renderStList(); draw();
+}
+$('stUp').onclick = ()=>reorder(1); $('stDown').onclick = ()=>reorder(-1);
+$('stIn').addEventListener('change',e=>{ addStickers(e.target.files); e.target.value = ''; });
+$('drop2').addEventListener('dragover',e=>{ e.preventDefault(); $('drop2').classList.add('over'); });
+$('drop2').addEventListener('dragleave',()=>$('drop2').classList.remove('over'));
+$('drop2').addEventListener('drop',e=>{ e.preventDefault(); $('drop2').classList.remove('over'); addStickers(e.dataTransfer.files); });
+
+/* seret teks / gambar */
+let dragging = false, off = {x:0,y:0};
+const pct = e => { const r = cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*100, y:(e.clientY-r.top)/r.height*100}; };
+const clamp = v => Math.min(100,Math.max(0,v));
+function moveTo(e){
+  const p = pct(e);
+  if(curTab==='imgP'){ const t = getSel(); if(!t) return; t.x = clamp(p.x-off.x); t.y = clamp(p.y-off.y); syncSt(); }
+  else { const L = layers[active]; L.x = clamp(p.x); L.y = clamp(p.y); syncUI(); }
+  draw();
+}
+cv.addEventListener('pointerdown',e=>{
+  if(curTab==='imgP'){
+    const p = pct(e);
+    const hit = [...stickers].reverse().find(t=>{ const w = t.w, h = t.w*W/H*t.img.height/t.img.width; return Math.abs(p.x-t.x)<=w/2 && Math.abs(p.y-t.y)<=h/2; });
+    if(!hit) return;
+    if(hit.id!==selId){ selId = hit.id; renderStList(); }
+    off = {x:p.x-hit.x, y:p.y-hit.y}; syncSt();
+  }
+  dragging = true; cv.setPointerCapture(e.pointerId); if(curTab!=='imgP') moveTo(e); else draw();
+});
 cv.addEventListener('pointermove',e=>{ if(dragging) moveTo(e); });
 cv.addEventListener('pointerup',()=>dragging = false);
 
@@ -292,11 +388,12 @@ $('dl').onclick = ()=>{
   const a = document.createElement('a'); a.download = 'thumbnail.png'; a.href = cv.toDataURL('image/png'); a.click();
   draw(); toast('Thumbnail diunduh.');
 };
-$('reset').onclick = ()=>{ if(!confirm('Kembalikan semua pengaturan thumbnail ke awal?')) return; layers = DEFAULTS(); active = 0; bgImg = null; grad = 0; dim.value = 30; $('dimV').textContent = '30%'; $('fname').textContent = ''; document.querySelectorAll('.sw').forEach((s,j)=>s.setAttribute('aria-pressed', j===0)); syncUI(); draw(); };
+$('reset').onclick = ()=>{ if(!confirm('Kembalikan semua pengaturan thumbnail ke awal?')) return; layers = DEFAULTS(); active = 0; bgImg = null; grad = 0; stickers = []; selId = null; renderStList(); dim.value = 30; $('dimV').textContent = '30%'; $('fname').textContent = ''; document.querySelectorAll('.sw').forEach((s,j)=>s.setAttribute('aria-pressed', j===0)); syncUI(); draw(); };
 
 /* ---- tab ---- */
 document.querySelectorAll('[data-tab]').forEach(t=>t.onclick = ()=>{
   document.querySelectorAll('[data-tab]').forEach(x=>{ x.setAttribute('aria-selected', x===t); $(x.dataset.tab).hidden = x!==t; });
+  curTab = t.dataset.tab; draw();
 });
 
 /* ---- judul ---- */
@@ -341,7 +438,7 @@ function toast(m){ const t = $('toast'); t.textContent = m; t.style.opacity = 1;
 
 /* ---- mulai ---- */
 $('dimV').textContent = '30%'; setCard('Judul live streaming kamu muncul di sini');
-syncUI(); draw();
+renderStList(); syncSt(); syncUI(); draw();
 if(document.fonts) document.fonts.ready.then(()=>draw());
 </script>
 </body>
